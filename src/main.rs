@@ -1,7 +1,16 @@
-use std::{fs::File, os, path::Path};
+use std::env;
+
+use reboot_to::os::{Linux, OperatingSystem, Windows};
 
 fn main() {
-    if !is_uefi_available() {
-        panic!("UEFI is not awailable on your platform.");
-    }
+    println!("{}", env::consts::OS);
+    let system: Box<dyn OperatingSystem> = if env::consts::OS == "linux" {
+        Box::new(Linux)
+    } else {
+        Box::new(Windows)
+    };
+
+    system
+        .get_boot_entries()
+        .unwrap_or_else(|e| eprintln!("{:?}", e));
 }

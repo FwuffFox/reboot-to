@@ -1,38 +1,70 @@
+use std::{error::Error, fmt::Debug, process::Command};
 
+pub struct EfiBootMgr;
 
-use std::{path::Path, process::Command};
+#[derive(Debug)]
+pub struct EfiBootMgrOutput {
+    boot_next: Option<u32>,
+    boot_current: u32,
+    boot_order: Vec<u32>,
+    boot_entry: Vec<EfiBootEntry>,
+}
 
-use efibootmgr::EfiBootMgr;
-
-use super::OperatingSystem;
-
-pub mod efibootmgr;
-
-struct Linux;
-
-
-impl OperatingSystem for Linux {
-    fn get_required_binaries() -> Vec<String> {
-        vec!["efibootmgr".to_string()]
+impl EfiBootMgrOutput {
+    fn new() -> EfiBootMgrOutput {
+        EfiBootMgrOutput {
+            boot_next: None,
+            boot_current: 0,
+            boot_order: vec![],
+            boot_entry: vec![],
+        }
     }
+}
 
-    fn is_uefi_available() -> bool {
-        Path::new("/sys/firmware/efi").exists()
-    }
+#[derive(Debug)]
+pub struct EfiBootEntry {
+    boot_num: u32,
+    boot_label: String,
+}
 
-    fn can_access_boot_entries() -> bool {
-        // !todo: Find a better way to check if binaries exist
-        Linux::is_uefi_available()
-            && Command::new("efibootmgr")
-                .spawn()
-                .is_ok()
-    }
+impl EfiBootMgr {
+    pub fn get_boot_info() -> Result<EfiBootMgrOutput, Box<dyn Error>> {
+        let mut efibootmgr_output = EfiBootMgrOutput::new();
 
-    fn get_boot_entries() {
-        
-    }
+        let output = Command::new("efibootmgr").output()?;
+        let result = output.stdout.split(|&x| x == b'\n');
 
-    fn change_boot_entry() -> Result<(), Box<dyn std::error::Error>> {
-        todo!()
+        for line in result {
+            let parts = line.split_once(|&x| x == b':');
+
+            match parts {
+                Some(x) => {
+                    let (name, value) = (
+                        String::from_utf8(x.0.to_vec())?,
+                        String::from_utf8(x.1.to_vec())?,
+                    );
+
+                    let (name, value) = (name.trim(), value.trim());
+
+                    match name {
+                        "BootNext" => efibootmgr_output.boot_next = Some(value.parse()?),
+
+                        "BootCurrent" => efibootmgr_output.boot_current = value.parse()?,
+
+                        "BootOrder" => {
+                            efibootmgr_output.boot_order = value
+                                .split(|x| x == ',')
+                                .map(|x| x.trim().parse().unwrap())
+                                .collect()
+                        }
+
+                        _ => println!("Unknown entry: {name} {value}"),
+                    }
+                }
+                None => println!("No boot enries support yet"),
+            }
+        }
+
+        Ok(efibootmgr_output)
     }
 }
