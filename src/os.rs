@@ -10,7 +10,7 @@ pub enum OperatingSystemType {
 }
 
 pub trait OperatingSystem {
-    fn get_required_binaries(&self) -> Vec<String>;
+    fn get_required_binaries(&self) -> Vec<&str>;
     fn is_uefi_available(&self) -> bool;
     fn can_access_boot_entries(&self) -> bool;
     fn get_boot_entries(&self) -> Result<(), Box<dyn Error>>;
@@ -20,8 +20,8 @@ pub trait OperatingSystem {
 pub struct Linux;
 
 impl OperatingSystem for Linux {
-    fn get_required_binaries(&self) -> Vec<String> {
-        vec!["efibootmgr".to_string()]
+    fn get_required_binaries(&self) -> Vec<&str> {
+        vec!["efibootmgr"]
     }
 
     fn is_uefi_available(&self) -> bool {
@@ -48,7 +48,7 @@ impl OperatingSystem for Linux {
 pub struct Windows;
 
 impl OperatingSystem for Windows {
-    fn get_required_binaries(&self) -> Vec<String> {
+    fn get_required_binaries(&self) -> Vec<&str> {
         todo!()
     }
 
