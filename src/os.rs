@@ -1,7 +1,5 @@
 use std::{error::Error, path::Path, process::Command};
 
-use linux::EfiBootMgr;
-
 pub mod linux;
 
 pub enum OperatingSystemType {
@@ -34,7 +32,7 @@ impl OperatingSystem for Linux {
     }
 
     fn get_boot_entries(&self) -> Result<(), Box<dyn Error>> {
-        let boot_info = EfiBootMgr::get_boot_info()?;
+        let boot_info = linux::get_boot_info()?;
         println!("{:?}", boot_info);
 
         Ok(())

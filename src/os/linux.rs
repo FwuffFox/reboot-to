@@ -1,8 +1,6 @@
 use regex::Regex;
 use std::{error::Error, fmt::Debug, process::Command, str};
 
-pub struct EfiBootMgr;
-
 #[derive(Debug)]
 pub struct EfiBootMgrOutput {
     boot_next: Option<u32>,
@@ -30,70 +28,68 @@ pub struct EfiBootEntry {
     boot_label: String,
 }
 
-impl EfiBootMgr {
-    pub fn get_boot_info() -> Result<EfiBootMgrOutput, Box<dyn Error>> {
-        let mut efibootmgr_output = EfiBootMgrOutput::new();
+pub fn get_boot_info() -> Result<EfiBootMgrOutput, Box<dyn Error>> {
+    let mut efibootmgr_output = EfiBootMgrOutput::new();
 
-        let output = Command::new("efibootmgr").output()?;
-        if !output.status.success() {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "efibootmgr command failed",
-            )));
+    let output = Command::new("efibootmgr").output()?;
+    if !output.status.success() {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "efibootmgr command failed",
+        )));
+    }
+    let stdout = str::from_utf8(&output.stdout)?.trim();
+    let result = stdout.lines();
+
+    for line in result {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
         }
-        let stdout = str::from_utf8(&output.stdout)?.trim();
-        let result = stdout.lines();
-
-        for line in result {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            Self::process_line(&mut efibootmgr_output, line)?;
-        }
-
-        Ok(efibootmgr_output)
+        process_line(&mut efibootmgr_output, line)?;
     }
 
-    fn process_line(
-        efibootmgr_output: &mut EfiBootMgrOutput,
-        line: &str,
-    ) -> Result<(), Box<dyn Error>> {
-        let parts = line.split_once(':');
-        match parts {
-            Some((name, value)) => {
-                let (name, value) = (name.trim(), value.trim());
+    Ok(efibootmgr_output)
+}
 
-                match name {
-                    "BootNext" => efibootmgr_output.boot_next = Some(value.parse()?),
+fn process_line(
+    efibootmgr_output: &mut EfiBootMgrOutput,
+    line: &str,
+) -> Result<(), Box<dyn Error>> {
+    let parts = line.split_once(':');
+    match parts {
+        Some((name, value)) => {
+            let (name, value) = (name.trim(), value.trim());
 
-                    "BootCurrent" => efibootmgr_output.boot_current = value.parse()?,
+            match name {
+                "BootNext" => efibootmgr_output.boot_next = Some(value.parse()?),
 
-                    "BootOrder" => {
-                        efibootmgr_output.boot_order = value
-                            .split(|x| x == ',')
-                            .map(|x| x.trim().parse().unwrap())
-                            .collect()
-                    }
+                "BootCurrent" => efibootmgr_output.boot_current = value.parse()?,
 
-                    "Timeout" => efibootmgr_output.timeout = Some(value.parse()?),
-
-                    _ => println!("Unknown entry: {} = {}", name, value),
+                "BootOrder" => {
+                    efibootmgr_output.boot_order = value
+                        .split(|x| x == ',')
+                        .map(|x| x.trim().parse().unwrap())
+                        .collect()
                 }
-            }
-            None => {
-                let regex = Regex::new(r"Boot(\d{4})\* (.+?)\t").unwrap();
-                if let Some(captures) = regex.captures(line) {
-                    println!("Regex matched: {:?}", captures);
-                    efibootmgr_output.boot_entries.push(EfiBootEntry {
-                        boot_num: captures[1].parse()?,
-                        boot_label: captures[2].to_string(),
-                    });
-                } else {
-                    println!("No match found for line: {}", line);
-                }
+
+                "Timeout" => efibootmgr_output.timeout = Some(value.parse()?),
+
+                _ => println!("Unknown entry: {} = {}", name, value),
             }
         }
-        Ok(())
+        None => {
+            let regex = Regex::new(r"Boot(\d{4})\* (.+?)\t").unwrap();
+            if let Some(captures) = regex.captures(line) {
+                println!("Regex matched: {:?}", captures);
+                efibootmgr_output.boot_entries.push(EfiBootEntry {
+                    boot_num: captures[1].parse()?,
+                    boot_label: captures[2].to_string(),
+                });
+            } else {
+                println!("No match found for line: {}", line);
+            }
+        }
     }
+    Ok(())
 }
