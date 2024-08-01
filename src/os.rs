@@ -32,8 +32,16 @@ impl OperatingSystem for Linux {
     }
 
     fn get_boot_entries(&self) -> Result<(), Box<dyn Error>> {
-        let boot_info = linux::get_boot_info()?;
-        println!("{:?}", boot_info);
+        let boot_info = linux::get_boot_info_from_efibootmgr()?;
+
+        let current = boot_info.boot_entries.iter()
+            .find(|&x| x.boot_num == boot_info.boot_current).unwrap();
+
+        println!("Current: {}", current.boot_label);
+        
+        for ele in boot_info.boot_entries {
+            println!("{}: {}", ele.boot_num, ele.boot_label);
+        }
 
         Ok(())
     }

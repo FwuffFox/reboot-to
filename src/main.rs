@@ -12,5 +12,5 @@ fn main() {
 
     system
         .get_boot_entries()
-        .unwrap_or_else(|e| eprintln!("{:?}", e));
+        .unwrap_or_else(|e| eprintln!("{e:?}"));
 }
