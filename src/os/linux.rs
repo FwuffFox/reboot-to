@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::fmt::{Display, Formatter};
 use std::{error::Error, fmt::Debug, process::Command, str};
 
 #[derive(Debug)]
@@ -28,6 +29,12 @@ pub struct BootEntry {
     pub boot_label: String,
 }
 
+impl Display for BootEntry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.boot_num, self.boot_label)
+    }
+}
+
 pub fn get_boot_info_from_efibootmgr() -> Result<BootInfo, Box<dyn Error>> {
     let output = Command::new("efibootmgr").output()?;
     if !output.status.success() {
@@ -40,7 +47,7 @@ pub fn get_boot_info_from_efibootmgr() -> Result<BootInfo, Box<dyn Error>> {
     get_boot_info_from_str(stdout)
 }
 
-pub fn get_boot_info_from_str(data: &str) -> Result<BootInfo, Box<dyn Error>>  {
+pub fn get_boot_info_from_str(data: &str) -> Result<BootInfo, Box<dyn Error>> {
     let mut boot_info = BootInfo::new();
 
     let result = data.lines();
@@ -56,10 +63,7 @@ pub fn get_boot_info_from_str(data: &str) -> Result<BootInfo, Box<dyn Error>>  {
     Ok(boot_info)
 }
 
-fn process_line(
-    boot_info: &mut BootInfo,
-    line: &str,
-) -> Result<(), Box<dyn Error>> {
+fn process_line(boot_info: &mut BootInfo, line: &str) -> Result<(), Box<dyn Error>> {
     let parts = line.split_once(':');
 
     if let Some((name, value)) = parts {
@@ -78,7 +82,6 @@ fn process_line(
             }
 
             // "Timeout" => efibootmgr_output.timeout = Some(value.parse()?),
-
             _ => println!("Unknown entry: {name} = {value}"),
         }
     } else {
@@ -90,6 +93,6 @@ fn process_line(
             });
         }
     }
-    
+
     Ok(())
 }
